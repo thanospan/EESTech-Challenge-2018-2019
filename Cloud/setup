@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# # Update & Upgrade
+# clear
+# sudo apt update
+# sudo DEBIAN_FRONTEND=noninteractive apt -y upgrade
+
+# # Create new user
+# clear
+# read -p 'Username: ' USERNAME
+# sudo adduser --gecos "" "${USERNAME}"
+# # Copy ssh keys of root user to /home/USERNAME
+# sudo rsync --archive --chown="${USERNAME}":"${USERNAME}" ~/.ssh /home/"${USERNAME}"
+# # Add USERNAME to sudo group
+# sudo usermod -aG sudo "${USERNAME}"
+# # Disable root login via ssh
+# #sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+
+# # Setup Firewall
+# clear
+# #ufw app list
+# sudo ufw allow OpenSSH
+# sudo ufw --force enable
+# #ufw status
+
+# Read variables
+clear
+read -p 'Node-RED container name: ' NODERED_CON_NAME
+read -p 'Node-RED container port: ' NODERED_CON_PORT
+
+read -p 'Mosquitto container name: ' MQTT_CON_NAME
+read -p 'Mosquitto container port1: ' MQTT_CON_PORT1
+read -p 'Mosquitto container port2: ' MQTT_CON_PORT2
+
+read -p 'MySQL container name: ' MYSQL_CON_NAME
+read -p 'MySQL container port: ' MYSQL_CON_PORT
+read -sp 'MySQL root password: ' MYSQL_ROOT_PW; echo
+read -p 'MySQL Node-RED user: ' MYSQL_NODERED_USER
+read -sp 'MySQL Node-RED user password: ' MYSQL_NODERED_USER_PW; echo
+read -p 'MySQL database name: ' MYSQL_DB_NAME
+
+# Docker Installation
+clear
+sudo apt update
+sudo apt install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+sudo apt update
+apt-cache policy docker-ce
+sudo apt -y install docker-ce
+#systemctl status docker
+# Add current user to docker group
+sudo usermod -aG docker "${USER}"
+# Use this instead if you uncomment the Create new user section
+#sudo usermod -aG docker "${USERNAME}"
+
+# Docker pull images
+clear
+sudo docker pull nodered/node-red-docker
+sudo docker pull eclipse-mosquitto
+sudo docker pull mysql
+
+# Docker run containers
+clear
+sudo docker run -itd -p "${NODERED_CON_PORT}":1880 --name "${NODERED_CON_NAME}" --restart unless-stopped nodered/node-red-docker
+#docker run -d --name="${NODERED_CON_NAME}" --restart=unless-stopped -p "${NODERED_CON_PORT}":1880 -u root -v ~/nodered:/data nodered/node-red-docker
+sudo docker run -itd -p "${MQTT_CON_PORT1}":1883 -p "${MQTT_CON_PORT2}":9001 --name "${MQTT_CON_NAME}" --restart=unless-stopped eclipse-mosquitto
+sudo docker run -d -p "${MYSQL_CON_PORT}":3306 --name "${MYSQL_CON_NAME}" --restart unless-stopped -e MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PW}" mysql
+
+# Get IP addresses of the containers
+clear
+NODERED_ADDR=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NODERED_CON_NAME)
+MOSQUITTO_ADDR=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MQTT_CON_NAME)
+MYSQL_ADDR=$(sudo docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $MYSQL_CON_NAME)
+
+# Wait for database connection
+clear
+until nc -z -v -w30 $MYSQL_ADDR 3306
+do
+  echo "Waiting for database connection..."
+  sleep 5
+done
+
+# Docker MySQL setup
+clear
+sudo docker exec -it "${MYSQL_CON_NAME}" mysql -uroot -p"${MYSQL_ROOT_PW}" -e "\
+CREATE USER "${MYSQL_NODERED_USER}"@"${NODERED_ADDR}" IDENTIFIED BY '${MYSQL_NODERED_USER_PW}';
+GRANT ALL PRIVILEGES ON *.* TO "${MYSQL_NODERED_USER}"@"${NODERED_ADDR}";
+ALTER USER "${MYSQL_NODERED_USER}"@"${NODERED_ADDR}" IDENTIFIED WITH mysql_native_password BY '${MYSQL_NODERED_USER_PW}';
+FLUSH PRIVILEGES;
+CREATE DATABASE "${MYSQL_DB_NAME}";
+USE "${MYSQL_DB_NAME}";
+CREATE TABLE env1(
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    thing_id VARCHAR(10) NOT NULL,
+    timestamp VARCHAR(20) NOT NULL,
+    tmp FLOAT NOT NULL,
+    hmd FLOAT NOT NULL,
+    prs FLOAT NOT NULL);
+CREATE TABLE env2(
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    thing_id VARCHAR(10) NOT NULL,
+    timestamp VARCHAR(20) NOT NULL,
+    prx ENUM('On', 'Off') NOT NULL,
+    amb MEDIUMINT UNSIGNED NOT NULL);
+CREATE TABLE btn(
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    thing_id VARCHAR(10) NOT NULL,
+    timestamp VARCHAR(20) NOT NULL,
+    btn ENUM('Pressed', 'Released') NOT NULL);
+"
+
+# Docker Node-RED setup
+clear
+sudo docker exec -it "${NODERED_CON_NAME}" /bin/bash -c "cd /data;npm install node-red-dashboard;npm install node-red-node-mysql;exit"
+sed -i "s/MQTT_ADDR/$MOSQUITTO_ADDR/g" flows.json
+sed -i "s/MYSQL_ADDR/$MYSQL_ADDR/g" flows.json
+sed -i "s/MYSQL_DB_NAME/$MYSQL_DB_NAME/g" flows.json
+sudo docker cp flows.json "${NODERED_CON_NAME}":/data/flows.json
+
+sudo docker stop "${NODERED_CON_NAME}"
+sudo docker start "${NODERED_CON_NAME}"
+
+# Done
+clear
+echo Finished!
