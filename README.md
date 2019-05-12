@@ -53,7 +53,7 @@ Team Members: [Thanos Panagiotidis](https://github.com/thanospan/), [Nikos Nikol
 	Click the button next to the select box to edit the MySQL database node.</br>
 	Set the User, Password fields to the username and password of the MySQL user created to access Node-RED.
 	
-	- Open a browser and visit <b>http://{vm-ip-address}:{node-red-port/ui}</b> to access the Node-RED dashboard.
+	- Open a browser and visit <b>http://{vm-ip-address}:{node-red-port}/ui</b> to access the Node-RED dashboard.
 	
 	---
 	
