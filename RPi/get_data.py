@@ -7,7 +7,10 @@ thing_id = "1"
 
 ip = "xxx.xxx.xxx.xxx"
 port = 1883
-client_name = "name"
+client_name = "Client"
+
+#file_name = "data.txt"
+minutes = 0.5
 
 thing = BleDevice(mac, thing_id)
 mqtt = MqttClient(ip, port, client_name)
@@ -16,12 +19,14 @@ handler = Handler()
 thing.connect()
 mqtt.connect()
 
-handler.mqttSetup(mqtt)
-#thing.printSvcChar()
+handler.mqtt_setup(mqtt)
+#handler.open_file(file_name)
+#thing.print_svc_char()
 thing.setup()
-thing.setHandler(handler)
+thing.set_handler(handler)
 
-thing.getData(5)
+thing.get_data(minutes)
 
 thing.disconnect()
 mqtt.disconnect()
+#handler.close_file()

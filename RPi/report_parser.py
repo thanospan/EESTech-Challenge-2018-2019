@@ -20,9 +20,9 @@ def switch(report_id):
         #15:("EULER_ANGLE_DELTA", 9),
         #16:("QUATERNION_DELTA", 11)
     }
-    
+
     return switcher.get(report_id, "UNKNOWN_ID")
-    
+
 def step(L):
     report_id = L[0]
     sensor_report = []
@@ -63,9 +63,9 @@ def step(L):
     else:
         sensor_report.append(L[:switch(report_id)[1]])
         #sensor_report.append(L[3:switch(report_id)[1]])
-    
+
     return sensor_report
-    
+
 def parse(string, thingID):
     if len(string) < 6:
         return {"UNKNOWN_ID": None}
@@ -75,7 +75,7 @@ def parse(string, thingID):
     multi_sensor_report = {}
     multi_sensor_report["TIMESTAMP"] = datetime.now().strftime("%d-%m-%Y %X")
     multi_sensor_report["THING_ID"] = thingID
-    
+
     while True:
         report_id = L[0]
         if (switch(report_id) == "UNKNOWN_ID") or (switch(report_id)[1] > len(L)):
@@ -85,5 +85,5 @@ def parse(string, thingID):
         multi_sensor_report[sensor_report[0]] = sensor_report[1]
         if len(L) < switch(report_id)[1]:
             break
-            
+
     return multi_sensor_report

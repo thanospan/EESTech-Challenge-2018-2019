@@ -4,31 +4,41 @@ import json
 class Handler:
     def __init__(self):
         pass
-        
-    def mqttSetup(self, mqtt):
+
+    def mqtt_setup(self, mqtt):
         self.mqtt = mqtt
-        
-    def printReport(self):
+
+    def publish_report(self, topic):
+        self.mqtt.set_topic(topic)
+        report_json = json.dumps(self.report)
+        self.mqtt.publish(report_json)
+
+    def open_file(self, file_name):
+        self.file = open(file_name, "a")
+
+    def close_file(self):
+        self.file.close()
+
+    def write_to_file(self):
+        self.file.write(self.data.hex()+"\n")
+
+    def print_report(self):
         print()
         print(self.data.hex())
         print(self.report)
-        
-    def publishReport(self, topic):
-        self.mqtt.setTopic(topic)
-        report_json = json.dumps(self.report)
-        self.mqtt.publish(report_json)
-        
-    def reportHandle(self, data, thingID):
+
+    def report_handle(self, data, thing_id):
         self.data = data
-        self.thingID = thingID
-        self.report = parse(self.data.hex(), self.thingID)
-        
+        #self.write_to_file()
+        self.thing_id = thing_id
+        self.report = parse(self.data.hex(), self.thing_id)
+
         if "TMP" in self.report:
-            self.printReport()
-            self.publishReport(self.thingID+"/env1")
+            self.print_report()
+            self.publish_report(self.thing_id+"/env1")
         if "AMB" in self.report:
-            self.printReport()
-            self.publishReport(self.thingID+"/env2")
+            self.print_report()
+            self.publish_report(self.thing_id+"/env2")
         if "BTN" in self.report:
-            self.printReport()
-            self.publishReport(self.thingID+"/btn")
+            self.print_report()
+            self.publish_report(self.thing_id+"/btn")
