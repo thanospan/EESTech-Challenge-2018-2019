@@ -57,7 +57,7 @@ Team Members: [Thanos Panagiotidis](https://github.com/thanospan/), [Nikos Nikol
 	
 	---
 	
-	A Step-By-Step Guide on how to set up the Ubuntu 18.04 VM can be found [here](https://github.com/thanospan/EESTech-Challenge-2018-2019/wiki/Cloud-Setup).
+	A Step-By-Step Guide on how to set up the Ubuntu 18.04 VM can be found [here](https://github.com/thanospan/EESTech-Challenge-2018-2019/wiki/VM-Setup).
 	
 	---
 
